@@ -1,10 +1,19 @@
 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
+import { Button, Col, Container, Form, ListGroup, Navbar, Row } from 'react-bootstrap';
 import './App.css';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faStickyNote} from '@fortawesome/free-regular-svg-icons';
 
 function App() {
- const [notes, setNotes] = useState([]);
+  const apiRoot=`https://localhost:7001/api/Notes`;
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [notes, setNotes] = useState([]);
 
  useEffect(() => {
   //verileri axios ile apiden çekelim
@@ -13,19 +22,111 @@ function App() {
       setNotes(response.data);
     });
    
- }, [])
- 
+ }, []);
+
+ const openNote=function(event,note,index){
+  event.preventDefault();
+  setSelectedIndex(index);
+  setSelectedNote(note);
+  setTitle(note.title);
+  setContent(note.content);
+ }
+
+ const handleClickNew=function(event){
+  event.preventDefault();
+  setSelectedIndex(-1);
+  setSelectedNote(null);
+  setTitle("");
+  setContent("");
+ };
+
+ const handleSubmit=function(event){
+  event.preventDefault();
+  if(selectedNote){
+
+    const updatedNote={
+      id:selectedNote.id,
+      title:title,
+      content:content
+    };
+    //güncelle
+    axios.put(apiRoot+"/" +selectedNote.id,updatedNote).then((response)=> {
+      const newNotes=[...notes];
+      newNotes[selectedIndex]=updatedNote;
+      setNotes(newNotes);
+    });
+  }
+  else{
+    const newNote={
+      title:title,
+      content:content
+    };
+    axios.post(apiRoot,newNote).then((response)=>{
+      const newNotes=[...notes];
+      newNotes.push(response.data);
+      setNotes(newNotes);
+      setSelectedIndex(newNotes.length-1);
+      selectedNote(response.data);
+    });
+  }
+ };
+
+ const handleDelete=function(event){
+  if(selectedNote){
+    axios.delete(apiRoot + "/" +selectedNote.id).then((response)=> {
+      const newNotes=[...notes];
+      newNotes.splice(selectedIndex,1);
+      setNotes(newNotes);
+      handleClickNew(event);
+    });
+  }
+ }
 
   return (
     <div className="App">
-      <div className="container">
-      <h1 className='mt-4'>My Notes</h1>
-      <ul>
-        {notes.map((note)=>
-         <li key={note.id}>{note.title}</li>
-         )}
-      </ul>
-      </div>
+      <Navbar bg="dark" variant='dark'>
+        <Container fluid>
+          <Navbar.Brand href='#home' className='fw-bold fs-2 '>
+            <FontAwesomeIcon icon={faStickyNote} className="me-2" />
+            Noten
+          </Navbar.Brand>
+        </Container>
+      </Navbar>
+      <Container fluid>
+        <Row>
+          <Col sm={4} md={3} >
+          <div className='d-flex align-items-baseline mt-4'>
+            <h4>Notes</h4>
+            <Button size="sm" variant='primary' className='mb-2 ms-auto' onClick={handleClickNew}>
+              <FontAwesomeIcon icon={faPlus} />
+            </Button>
+          </div>
+          
+          <ListGroup>
+              {notes.map((note, index)=>
+                <ListGroup.Item key={note.id} action active={selectedIndex===index} onClick={(e)=> openNote(e, note, index)}>
+                  {note.title}
+                </ListGroup.Item>
+              )}
+          </ListGroup>
+          </Col>
+          <Col sm={8} md={9}>
+                <Form onSubmit={handleSubmit}>
+                  <Form.Group className='mb-3 mt-4'>
+                    <Form.Control type='text' placeholder='Title' value={title} onChange={(e)=> setTitle(e.target.value)}/>
+                  </Form.Group>
+                  <Form.Group className='mb-3'>
+                    <Form.Control as="textarea" type='text' placeholder='Content' rows={10} value={content}  onChange={(e)=> setContent(e.target.value)}/>
+                  </Form.Group>
+                  <div>
+                    <Button variant='primary' type='submit' className='me-2'>Save</Button>
+                    <Button variant='danger' type='button' onClick={handleDelete}>Delete</Button>
+                  </div>
+                </Form>
+          </Col>
+        </Row>
+      
+      </Container>
     </div>
   );
 }
